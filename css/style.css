@@ -287,6 +287,11 @@ select option { background: var(--clr-surface2); }
   box-shadow: 0 4px 14px rgba(59, 130, 246, 0.45);
 }
 .btn-primary:active { transform: translateY(1px); }
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 
 .btn-outline {
   background: transparent;
@@ -321,6 +326,11 @@ select option { background: var(--clr-surface2); }
   border-radius: var(--radius-sm);
   padding: 0.65rem 0.85rem;
   line-height: 1.5;
+}
+
+#err-general {
+  display: block;
+  margin-bottom: 0.75rem;
 }
 
 /* ── Topbar ───────────────────────────────────────────────────── */
