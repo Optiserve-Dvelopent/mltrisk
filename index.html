@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MT5 Lot Calculator</title>
+  <meta name="description" content="Kostenloser MetaTrader 5 Lot-Größen Rechner – berechnen Sie die optimale Positionsgröße anhand Ihres Risikos und Stop-Loss in Pips." />
+  <meta name="theme-color" content="#0f1117" />
+
+  <!-- Open Graph -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:title"       content="MT5 Lot Calculator" />
+  <meta property="og:description" content="Kostenloser MetaTrader 5 Lot-Größen Rechner – berechnen Sie die optimale Positionsgröße anhand Ihres Risikos." />
+
+  <!-- Preload critical stylesheet -->
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- Discover and download JS early; defer keeps execution after DOM is parsed -->
+  <script src="js/app.js" defer></script>
+</head>
+<body>
+
+  <!-- ─── Login View ─────────────────────────────────────────────────── -->
+  <div id="login-view" class="view">
+    <div class="card login-card">
+      <div class="logo-row">
+        <span class="logo-icon">📈</span>
+        <h1>MT5 Lot Calculator</h1>
+      </div>
+      <p class="subtitle">Melden Sie sich mit Ihrem MetaTrader&nbsp;5 Konto an</p>
+
+      <form id="login-form" novalidate>
+        <div class="form-group">
+          <label for="mt5-login">Kontonummer (Login)</label>
+          <input
+            type="number"
+            id="mt5-login"
+            name="mt5-login"
+            placeholder="z.B. 12345678"
+            min="1"
+            required
+            autocomplete="username"
+          />
+          <span class="field-error" id="err-login"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="mt5-password">Passwort</label>
+          <div class="password-wrapper">
+            <input
+              type="password"
+              id="mt5-password"
+              name="mt5-password"
+              placeholder="Ihr MT5-Passwort"
+              required
+              autocomplete="current-password"
+            />
+            <button type="button" class="toggle-pw" aria-label="Passwort anzeigen" id="toggle-pw">
+              👁
+            </button>
+          </div>
+          <span class="field-error" id="err-password"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="mt5-server">Server</label>
+          <input
+            type="text"
+            id="mt5-server"
+            name="mt5-server"
+            placeholder="z.B. BrokerName-Live"
+            required
+            autocomplete="off"
+          />
+          <span class="field-error" id="err-server"></span>
+        </div>
+
+        <div class="form-group checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="remember-me" />
+            Angemeldet bleiben
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full" id="login-btn">
+          Anmelden
+        </button>
+
+        <p class="login-hint">
+          ⚠️ Ihre Zugangsdaten werden ausschließlich lokal in Ihrem Browser
+          gespeichert und niemals an einen externen Server übermittelt.
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ─── Calculator View ───────────────────────────────────────────── -->
+  <div id="calc-view" class="view hidden">
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="logo-icon">📈</span>
+        <span class="topbar-title">MT5 Lot Calculator</span>
+      </div>
+      <div class="topbar-right">
+        <span class="account-badge" id="account-badge"></span>
+        <button class="btn btn-outline btn-sm" id="logout-btn">Abmelden</button>
+      </div>
+    </header>
+
+    <main class="calc-main">
+      <div class="card calc-card">
+        <h2>Lot-Größen Rechner</h2>
+        <p class="subtitle">Berechnen Sie die optimale Lot-Größe anhand Ihres Risikos</p>
+
+        <form id="calc-form" novalidate>
+          <div class="grid-2">
+
+            <!-- Account Currency -->
+            <div class="form-group">
+              <label for="account-currency">Kontowährung</label>
+              <select id="account-currency" name="account-currency">
+                <option value="USD">USD – US-Dollar</option>
+                <option value="EUR">EUR – Euro</option>
+                <option value="GBP">GBP – Britisches Pfund</option>
+                <option value="CHF">CHF – Schweizer Franken</option>
+                <option value="JPY">JPY – Japanischer Yen</option>
+                <option value="AUD">AUD – Australischer Dollar</option>
+                <option value="CAD">CAD – Kanadischer Dollar</option>
+              </select>
+            </div>
+
+            <!-- Account Balance -->
+            <div class="form-group">
+              <label for="account-balance">Kontostand</label>
+              <div class="input-prefix-wrapper">
+                <span class="input-prefix" id="currency-prefix">$</span>
+                <input
+                  type="number"
+                  id="account-balance"
+                  name="account-balance"
+                  placeholder="10 000"
+                  min="0.01"
+                  step="0.01"
+                  required
+                />
+              </div>
+              <span class="field-error" id="err-balance"></span>
+            </div>
+
+            <!-- Risk % -->
+            <div class="form-group">
+              <label for="risk-percent">Risiko pro Trade (%)</label>
+              <div class="input-suffix-wrapper">
+                <input
+                  type="number"
+                  id="risk-percent"
+                  name="risk-percent"
+                  placeholder="1"
+                  min="0.01"
+                  max="100"
+                  step="0.01"
+                  value="1"
+                  required
+                />
+                <span class="input-suffix">%</span>
+              </div>
+              <input
+                type="range"
+                id="risk-slider"
+                min="0.1"
+                max="10"
+                step="0.1"
+                value="1"
+                class="risk-slider"
+              />
+              <span class="field-error" id="err-risk"></span>
+            </div>
+
+            <!-- Instrument -->
+            <div class="form-group">
+              <label for="instrument">Instrument</label>
+              <select id="instrument" name="instrument">
+                <optgroup label="Forex Major">
+                  <option value="EURUSD" data-pip="0.0001" data-pip-usd="10">EURUSD</option>
+                  <option value="GBPUSD" data-pip="0.0001" data-pip-usd="10">GBPUSD</option>
+                  <option value="AUDUSD" data-pip="0.0001" data-pip-usd="10">AUDUSD</option>
+                  <option value="NZDUSD" data-pip="0.0001" data-pip-usd="10">NZDUSD</option>
+                  <option value="USDCAD" data-pip="0.0001" data-pip-usd="10">USDCAD</option>
+                  <option value="USDCHF" data-pip="0.0001" data-pip-usd="10">USDCHF</option>
+                  <option value="USDJPY" data-pip="0.01"   data-pip-usd="10">USDJPY</option>
+                </optgroup>
+                <optgroup label="Forex Minor">
+                  <option value="EURGBP" data-pip="0.0001" data-pip-usd="10">EURGBP</option>
+                  <option value="EURJPY" data-pip="0.01"   data-pip-usd="10">EURJPY</option>
+                  <option value="GBPJPY" data-pip="0.01"   data-pip-usd="10">GBPJPY</option>
+                  <option value="EURCHF" data-pip="0.0001" data-pip-usd="10">EURCHF</option>
+                  <option value="GBPCHF" data-pip="0.0001" data-pip-usd="10">GBPCHF</option>
+                  <option value="AUDCAD" data-pip="0.0001" data-pip-usd="10">AUDCAD</option>
+                  <option value="AUDCHF" data-pip="0.0001" data-pip-usd="10">AUDCHF</option>
+                  <option value="AUDJPY" data-pip="0.01"   data-pip-usd="10">AUDJPY</option>
+                  <option value="CADCHF" data-pip="0.0001" data-pip-usd="10">CADCHF</option>
+                  <option value="CADJPY" data-pip="0.01"   data-pip-usd="10">CADJPY</option>
+                  <option value="CHFJPY" data-pip="0.01"   data-pip-usd="10">CHFJPY</option>
+                  <option value="NZDCAD" data-pip="0.0001" data-pip-usd="10">NZDCAD</option>
+                  <option value="NZDCHF" data-pip="0.0001" data-pip-usd="10">NZDCHF</option>
+                  <option value="NZDJPY" data-pip="0.01"   data-pip-usd="10">NZDJPY</option>
+                </optgroup>
+                <optgroup label="Indizes">
+                  <option value="US30"   data-pip="1"      data-pip-usd="1">US30 (Dow Jones)</option>
+                  <option value="SPX500" data-pip="0.25"   data-pip-usd="2.5">SPX500 (S&amp;P 500)</option>
+                  <option value="NAS100" data-pip="0.25"   data-pip-usd="2.5">NAS100 (Nasdaq)</option>
+                  <option value="GER40"  data-pip="1"      data-pip-usd="1">GER40 (DAX)</option>
+                  <option value="UK100"  data-pip="1"      data-pip-usd="1">UK100 (FTSE)</option>
+                </optgroup>
+                <optgroup label="Rohstoffe">
+                  <option value="XAUUSD" data-pip="0.01"   data-pip-usd="1">XAUUSD (Gold)</option>
+                  <option value="XAGUSD" data-pip="0.001"  data-pip-usd="5">XAGUSD (Silber)</option>
+                  <option value="USOIL"  data-pip="0.01"   data-pip-usd="10">USOIL (Öl)</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <!-- Stop Loss -->
+            <div class="form-group">
+              <label for="stop-loss">Stop Loss (Pips)</label>
+              <div class="input-suffix-wrapper">
+                <input
+                  type="number"
+                  id="stop-loss"
+                  name="stop-loss"
+                  placeholder="20"
+                  min="0.1"
+                  step="0.1"
+                  required
+                />
+                <span class="input-suffix">Pips</span>
+              </div>
+              <span class="field-error" id="err-sl"></span>
+            </div>
+
+            <!-- Pip Value override -->
+            <div class="form-group">
+              <label for="pip-value">Pip-Wert pro Lot (<span id="currency-label">USD</span>)</label>
+              <div class="input-prefix-wrapper">
+                <span class="input-prefix" id="pip-currency-prefix">$</span>
+                <input
+                  type="number"
+                  id="pip-value"
+                  name="pip-value"
+                  placeholder="10"
+                  min="0.0001"
+                  step="0.0001"
+                  required
+                />
+              </div>
+              <span class="field-error" id="err-pip"></span>
+              <small class="field-hint">Standardwert für 1 Standard-Lot (100 000 Einheiten)</small>
+            </div>
+
+          </div><!-- /grid-2 -->
+
+          <div class="btn-row">
+            <button type="submit" class="btn btn-primary" id="calc-btn">
+              Lot-Größe berechnen
+            </button>
+            <button type="reset" class="btn btn-outline" id="reset-btn">
+              Zurücksetzen
+            </button>
+          </div>
+        </form>
+
+        <!-- Result Panel -->
+        <div id="result-panel" class="result-panel hidden">
+          <div class="result-grid">
+            <div class="result-item highlight">
+              <span class="result-label">Lot-Größe</span>
+              <span class="result-value" id="res-lot">–</span>
+            </div>
+            <div class="result-item">
+              <span class="result-label">Risikobetrag</span>
+              <span class="result-value" id="res-risk-amount">–</span>
+            </div>
+            <div class="result-item">
+              <span class="result-label">Einheiten</span>
+              <span class="result-value" id="res-units">–</span>
+            </div>
+            <div class="result-item">
+              <span class="result-label">Pip-Wert (dieser Trade)</span>
+              <span class="result-value" id="res-pip-value">–</span>
+            </div>
+          </div>
+
+          <!-- Lot type breakdown -->
+          <div class="lot-breakdown">
+            <h3>Lot-Typen Übersicht</h3>
+            <table class="lot-table">
+              <thead>
+                <tr>
+                  <th>Bezeichnung</th>
+                  <th>Lots</th>
+                  <th>Einheiten</th>
+                </tr>
+              </thead>
+              <tbody id="lot-table-body"></tbody>
+            </table>
+          </div>
+        </div><!-- /result-panel -->
+
+      </div><!-- /calc-card -->
+
+      <!-- Info Card -->
+      <div class="card info-card">
+        <h3>📐 Formel</h3>
+        <p>
+          <strong>Lot-Größe</strong> =
+          <code>(Kontostand × Risiko%) ÷ (Stop Loss in Pips × Pip-Wert pro Lot)</code>
+        </p>
+        <h3>ℹ️ Hinweise</h3>
+        <ul>
+          <li>1 <strong>Standard Lot</strong> = 100 000 Einheiten der Basiswährung</li>
+          <li>1 <strong>Mini Lot</strong> = 10 000 Einheiten (0,10 Lot)</li>
+          <li>1 <strong>Micro Lot</strong> = 1 000 Einheiten (0,01 Lot)</li>
+          <li>1 <strong>Nano Lot</strong> = 100 Einheiten (0,001 Lot)</li>
+          <li>Der <strong>Pip-Wert</strong> hängt vom Instrument und der Kontowährung ab.</li>
+          <li>Überprüfen Sie immer die genauen Spezifikationen in Ihrem MT5-Terminal.</li>
+        </ul>
+      </div>
+
+    </main>
+  </div><!-- /calc-view -->
+
+</body>
+</html>
