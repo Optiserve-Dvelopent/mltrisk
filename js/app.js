@@ -2,7 +2,7 @@
  * MT5 Lot Calculator – Application Logic
  *
  * Features:
- *  - MT5 login form (account number, password, server)
+ *  - Login form authenticated against SQL database via /api/login
  *  - Session persistence (optional "remember me")
  *  - Lot-size calculation:
  *      Lot = (Balance × Risk%) / (StopLoss_pips × PipValue_per_lot)
@@ -23,16 +23,16 @@ const calcView    = document.getElementById('calc-view');
 
 // Login form
 const loginForm   = document.getElementById('login-form');
-const fLogin      = document.getElementById('mt5-login');
-const fPassword   = document.getElementById('mt5-password');
-const fServer     = document.getElementById('mt5-server');
+const fUsername   = document.getElementById('db-username');
+const fPassword   = document.getElementById('db-password');
 const fRemember   = document.getElementById('remember-me');
 const togglePw    = document.getElementById('toggle-pw');
+const loginBtn    = document.getElementById('login-btn');
 
 // Errors – login
-const errLogin    = document.getElementById('err-login');
+const errUsername = document.getElementById('err-username');
 const errPassword = document.getElementById('err-password');
-const errServer   = document.getElementById('err-server');
+const errGeneral  = document.getElementById('err-general');
 
 // Calc form
 const calcForm         = document.getElementById('calc-form');
@@ -72,15 +72,17 @@ function hide(el) { el.classList.add('hidden'); }
 function setError(inputEl, msgEl, msg) {
   msgEl.textContent = msg;
   if (msg) {
-    inputEl.classList.add('error');
+    if (inputEl) inputEl.classList.add('error');
   } else {
-    inputEl.classList.remove('error');
+    if (inputEl) inputEl.classList.remove('error');
   }
 }
 
 function clearErrors() {
+  setError(fUsername, errUsername, '');
+  setError(fPassword, errPassword, '');
+  setError(null,      errGeneral,  '');
   [
-    [fLogin, errLogin], [fPassword, errPassword], [fServer, errServer],
     [fBalance, errBalance], [fRisk, errRisk], [fStopLoss, errSl], [fPipValue, errPip]
   ].forEach(([inp, err]) => setError(inp, err, ''));
 }
@@ -93,8 +95,8 @@ function fmt(n, decimals = 2) {
 }
 
 /* ── Session Management ──────────────────────────────────────── */
-function saveSession(login, server, remember) {
-  const data = { login, server };
+function saveSession(username, remember) {
+  const data = { username };
   if (remember) {
     localStorage.setItem(SESSION_KEY,  JSON.stringify(data));
     localStorage.setItem(REMEMBER_KEY, '1');
@@ -123,48 +125,61 @@ function clearSession() {
 /* ── Login ───────────────────────────────────────────────────── */
 // Toggle password visibility
 togglePw.addEventListener('click', () => {
-  // isText reflects the state *before* the click; labels describe the *next* action
   const isText = fPassword.type === 'text';
   fPassword.type = isText ? 'password' : 'text';
-  // After hiding (isText=true): next action = show → 👁 / "Passwort anzeigen"
-  // After showing (isText=false): next action = hide → 🙈 / "Passwort verbergen"
   togglePw.setAttribute('aria-label', isText ? 'Passwort anzeigen' : 'Passwort verbergen');
   togglePw.textContent = isText ? '👁' : '🙈';
 });
 
-loginForm.addEventListener('submit', (e) => {
+loginForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   clearErrors();
 
   let valid = true;
-  const loginVal    = fLogin.value.trim();
+  const usernameVal = fUsername.value.trim();
   const passwordVal = fPassword.value;
-  const serverVal   = fServer.value.trim();
 
-  if (!loginVal || isNaN(Number(loginVal)) || Number(loginVal) < 1) {
-    setError(fLogin, errLogin, 'Bitte geben Sie eine gültige Kontonummer ein.');
+  if (!usernameVal) {
+    setError(fUsername, errUsername, 'Bitte geben Sie Ihren Benutzernamen ein.');
     valid = false;
   }
   if (!passwordVal) {
     setError(fPassword, errPassword, 'Bitte geben Sie Ihr Passwort ein.');
     valid = false;
   }
-  if (!serverVal) {
-    setError(fServer, errServer, 'Bitte geben Sie den Server-Namen ein.');
-    valid = false;
-  }
 
   if (!valid) return;
 
-  // Save session (credentials are stored locally only)
-  saveSession(loginVal, serverVal, fRemember.checked);
+  loginBtn.disabled = true;
+  loginBtn.textContent = 'Anmelden …';
 
-  // Show calculator
-  showCalculator(loginVal, serverVal);
+  try {
+    const response = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: usernameVal, password: passwordVal })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setError(null, errGeneral, data.error || 'Anmeldung fehlgeschlagen.');
+      return;
+    }
+
+    saveSession(data.username, fRemember.checked);
+    showCalculator(data.username);
+  } catch (err) {
+    console.error('[login] Fetch error:', err);
+    setError(null, errGeneral, 'Verbindungsfehler. Bitte versuchen Sie es erneut.');
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'Anmelden';
+  }
 });
 
-function showCalculator(login, server) {
-  accountBadge.textContent = `#${login} @ ${server}`;
+function showCalculator(username) {
+  accountBadge.textContent = username;
   hide(loginView);
   show(calcView);
 }
@@ -297,9 +312,8 @@ calcForm.addEventListener('reset', () => {
 /* ── Auto-restore session on page load ───────────────────────── */
 (function init() {
   const session = loadSession();
-  if (session && session.login && session.server) {
-    fLogin.value  = session.login;
-    fServer.value = session.server;
+  if (session && session.username) {
+    showCalculator(session.username);
     fRemember.checked = localStorage.getItem(REMEMBER_KEY) === '1';
   }
 
